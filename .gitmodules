@@ -1,0 +1,6 @@
+[submodule "TIMEGAN"]
+	path = TIMEGAN
+	url = https://github.com/jsyoon0823/TimeGAN.git
+[submodule "VAECJ"]
+	path = VAECJ
+	url = https://github.com/jlee118/VAECJ.git
