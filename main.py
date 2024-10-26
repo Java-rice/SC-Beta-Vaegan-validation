@@ -9,7 +9,9 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtGui import QFont, QPainter, QPen, QColor
 from PyQt5.QtCore import Qt, QPoint
-
+from classifier import classify_emotion 
+from sklearn.preprocessing import StandardScaler
+from PyQt5 import QtWidgets
 
 class EmotionDetectionApp(QWidget):
     def __init__(self):
@@ -22,10 +24,10 @@ class EmotionDetectionApp(QWidget):
 
     def setup_ui(self):
         self.setWindowTitle('Emotion Detection from Handwriting and Drawing')
-        self.setGeometry(50, 50, 900, 650)
+        self.setGeometry(0, 0, 900, 650)
         self.setStyleSheet('background-color: #FFFFFF;')
         self.center_window()
-
+        
         # Title Section
         title_text = (
             '<a href="https://peerj.com/articles/cs-1887/#supplemental-information" '
@@ -163,21 +165,23 @@ class EmotionDetectionApp(QWidget):
         self.load_model_files()
         
         # Initially hide the model dropdown and draw button
-        self.model_dropdown.setVisible(False)
         self.draw_btn.setVisible(False)
 
     def center_window(self):
-        qt_rectangle = self.frameGeometry()  
-        center_point = QDesktopWidget().availableGeometry().center()  
-        qt_rectangle.moveCenter(center_point) 
-        self.move(qt_rectangle.topLeft())  
-
+        # Center window on screen
+        screen = QDesktopWidget().availableGeometry().center()
+        window_rect = self.frameGeometry()
+        window_rect.moveCenter(screen)
+        self.move(window_rect.topLeft())
+        
     def upload_file(self):
         file_name, _ = QFileDialog.getOpenFileName(self, "Upload File", "", "Text Files (*.txt *.csv *.svc)")
+        print(file_name)
         if file_name:
             self.file_name_label.setText(f"Uploaded: {file_name.split('/')[-1]}")
             self.last_uploaded_file = file_name  # Set the last uploaded file
             self.process_and_plot_file(file_name)
+            print(self.last_uploaded_file)
         else:
             self.file_name_label.setText("")
 
@@ -213,11 +217,30 @@ class EmotionDetectionApp(QWidget):
         if self.last_uploaded_file:
             self.process_and_plot_file(self.last_uploaded_file)
 
-    # Function to simulate classification
+     # Updated classify function to use the selected model and uploaded file path
     def classify(self):
-        # Simulate results
-        self.result_label.setText("Label: Happy")
-        self.accuracy_label.setText("Accuracy: 85%")
+        if not self.last_uploaded_file:
+            print("No file uploaded.")
+            self.result_label.setText("Please upload a file.")
+            return
+        
+        if not self.selected_model:
+            print("No model selected.")
+            self.result_label.setText("Please select a model.")
+            return     
+        try:
+            emotion, confidence = classify_emotion(self.selected_model, self.last_uploaded_file, self.scaler_path)
+            print('test' + self.last_uploaded_file)
+            print(f"\nFile: {os.path.basename(self.last_uploaded_file)}")
+            print(f"Predicted Emotion: {emotion}")
+            print(f"Confidence: {confidence[0][1]}")
+            self.result_label.setText("Label: " + emotion)
+            self.accuracy_label.setText(f"Confidence: {confidence[0][1]:.2f}%")
+        except Exception as e:
+            print(f"Classification error: {e}")
+            print(f"\nFile: {os.path.basename(self.last_uploaded_file)}")
+            self.result_label.setText("Classification failed.")
+            # self.accuracy_label.setText("Please check the file and model.")
 
     # Function to open canvas for drawing/handwriting
     def open_canvas(self):
@@ -242,21 +265,22 @@ class EmotionDetectionApp(QWidget):
             # Check for files with extensions .h5, .model.keras, or .model
             model_files = [
                 f for f in os.listdir(model_dir)
-                if f.endswith(('.h5', '.model.keras', '.model', '.keras.model'))
+                if f.endswith(('.h5', '.model.keras', '.model', '.keras', '.keras.model'))
             ]
             self.model_dropdown.addItems(model_files)
         else:
             print(f"Directory {model_dir} does not exist.")
     # Function to store the selected model
+    # Function to store the selected model
     def model_selected(self):
         selected_model_name = self.model_dropdown.currentText()
         if selected_model_name != 'Select a model':
-            self.selected_model = selected_model_name
+            self.selected_model = './trainmodel/' + selected_model_name
+            scaler_name = os.path.splitext(selected_model_name)[0] + '.save'
+            self.scaler_path = './trainmodel/' + scaler_name
             print(f"Selected model: {self.selected_model}")
         else:
             self.selected_model = None
-
-
 class CanvasWindow(QWidget):
     pass
 
