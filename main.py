@@ -12,7 +12,10 @@ from PyQt5.QtCore import Qt, QPoint
 from classifier import classify_emotion 
 from sklearn.preprocessing import StandardScaler
 from PyQt5 import QtWidgets
-
+from PyQt5 import QtCore, QtWidgets
+from PyQt5.QtWebEngineWidgets import QWebEngineView
+import os
+import subprocess
 class EmotionDetectionApp(QWidget):
     def __init__(self):
         super().__init__()
@@ -165,7 +168,7 @@ class EmotionDetectionApp(QWidget):
         self.load_model_files()
         
         # Initially hide the model dropdown and draw button
-        self.draw_btn.setVisible(False)
+        # self.draw_btn.setVisible(False)
 
     def center_window(self):
         # Center window on screen
@@ -242,11 +245,40 @@ class EmotionDetectionApp(QWidget):
             self.result_label.setText("Classification failed.")
             # self.accuracy_label.setText("Please check the file and model.")
 
-    # Function to open canvas for drawing/handwriting
     def open_canvas(self):
-        self.canvas_window = CanvasWindow()
-        self.canvas_window.show()
-    
+        """Run the Flask app located in components/canvas/app.py and open it in a popup window."""
+        flask_app_path = os.path.abspath(os.path.join(os.path.dirname(__file__), 'canvas/app.py'))
+
+        # Run the Flask app as a subprocess
+        self.flask_process = subprocess.Popen(['python', flask_app_path])
+
+        # Display the popup window after a short delay to ensure Flask is running
+        QtCore.QTimer.singleShot(5000, self.show_popup_browser)
+
+    def show_popup_browser(self):
+        """Show the Flask app inside a popup window using QWebEngineView."""
+        self.popup_dialog = QtWidgets.QDialog()
+        self.popup_dialog.setWindowTitle("Drawing Canvas")
+        self.popup_dialog.setGeometry(100, 100, 800, 600)
+
+        self.webview = QWebEngineView(self.popup_dialog)
+        self.webview.setUrl(QtCore.QUrl("http://127.0.0.1:5000"))
+
+        layout = QtWidgets.QVBoxLayout(self.popup_dialog)
+        layout.addWidget(self.webview)
+
+        self.webview.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
+
+        # Connect a slot to close the dialog
+        self.popup_dialog.finished.connect(self.close_popup_dialog)
+        self.popup_dialog.exec_()
+
+    def close_popup_dialog(self):
+        """Terminate the Flask subprocess when the popup dialog is closed."""
+        if self.flask_process:
+            self.flask_process.terminate()
+            self.flask_process = None
+        
     def drag_enter_event(self, event):
         if event.mimeData().hasUrls():
             event.acceptProposedAction()
