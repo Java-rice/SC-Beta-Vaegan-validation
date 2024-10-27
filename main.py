@@ -168,7 +168,7 @@ class EmotionDetectionApp(QWidget):
         self.load_model_files()
         
         # Initially hide the model dropdown and draw button
-        self.draw_btn.setVisible(False)
+        # self.draw_btn.setVisible(False)
 
     def center_window(self):
         # Center window on screen
@@ -257,24 +257,27 @@ class EmotionDetectionApp(QWidget):
 
     def show_popup_browser(self):
         """Show the Flask app inside a popup window using QWebEngineView."""
-        # Create a new QDialog for the popup window
         self.popup_dialog = QtWidgets.QDialog()
         self.popup_dialog.setWindowTitle("Drawing Canvas")
-        self.popup_dialog.setGeometry(100, 100, 800, 600)  # Set initial size and position
+        self.popup_dialog.setGeometry(100, 100, 800, 600)
 
-        # Create a QWebEngineView and load the Flask app's URL
         self.webview = QWebEngineView(self.popup_dialog)
         self.webview.setUrl(QtCore.QUrl("http://127.0.0.1:5000"))
-        
-        # Add the webview to the popup dialog layout
+
         layout = QtWidgets.QVBoxLayout(self.popup_dialog)
         layout.addWidget(self.webview)
 
-        # Ensure the webview resizes responsively
         self.webview.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
 
-        # Show the popup dialog
+        # Connect a slot to close the dialog
+        self.popup_dialog.finished.connect(self.close_popup_dialog)
         self.popup_dialog.exec_()
+
+    def close_popup_dialog(self):
+        """Terminate the Flask subprocess when the popup dialog is closed."""
+        if self.flask_process:
+            self.flask_process.terminate()
+            self.flask_process = None
         
     def drag_enter_event(self, event):
         if event.mimeData().hasUrls():

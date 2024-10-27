@@ -81,7 +81,7 @@ function convertToSVC(data) {
     const rows = data.map(row => row.join(' ')).join('\n');
 
     // Count the number of rows
-    const rowCount = data.length;
+    const rowCount = data.length + '\n';
 
     // Create the header with the total number of rows
     const header = rowCount;
@@ -130,7 +130,11 @@ function sendSVCtoServer() {
         .then(response => response.json())
         .then(data => {
             console.log('File uploaded successfully:', data.message);
-            window.close();
+            if (window.pywebview) {
+                window.pywebview.close();
+            } else {
+                window.close(); // Closes the window if it was opened with `window.open()`
+            }
         })
         .catch(error => {
             console.error('Error uploading file:', error);

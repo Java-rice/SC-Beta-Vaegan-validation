@@ -28,6 +28,16 @@ def upload_svc():
     last_uploaded_filename = filename  # Store the filename
     return jsonify({'message': 'File uploaded successfully', 'filename': filename}), 200
 
+@app.route('/shutdown', methods=['POST'])
+def shutdown():
+    """Shut down the Flask server."""
+    shutdown_server()
+    return jsonify({'message': 'Server is shutting down.'}), 200
+
+def shutdown_server():
+    """Shutdown the Flask server using os.kill."""
+    os.kill(os.getpid(), signal.SIGINT)  # Send the interrupt signal to the current process
+
 # Route for checking file upload status
 @app.route('/check_upload', methods=['GET'])
 def check_upload():
@@ -38,8 +48,6 @@ def check_upload():
         return jsonify({"message": "File uploaded", "filename": filename}), 200
     else:
         return jsonify({"message": "No file uploaded yet"}), 204
-
-
 
 if __name__ == '__main__':
     app.run(debug=True)
