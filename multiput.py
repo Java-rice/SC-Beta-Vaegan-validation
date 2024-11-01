@@ -17,8 +17,7 @@ class EmotionDetectionApp(QWidget):
     def __init__(self):
         super().__init__()
         self.setup_ui()
-        self.last_uploaded_file1 = None
-        self.last_uploaded_file2 = None
+        self.last_uploaded_file = None
         self.show_in_air_data1 = False
         self.show_in_air_data2 = False
         self.selected_model1 = None
@@ -45,28 +44,34 @@ class EmotionDetectionApp(QWidget):
         title.setStyleSheet("padding: 28px;")
         title.setWordWrap(True)
 
-        def create_upload_section(side):
-            layout = QVBoxLayout()
-            file_name_label = QLabel('', self)
-            file_name_label.setStyleSheet('color: #0587C7;')
-            upload_btn = QPushButton(f'Upload File {side}', self)
-            upload_btn.setFixedSize(200, 35)
-            upload_btn.setCursor(Qt.PointingHandCursor)
-            upload_btn.setStyleSheet("""QPushButton {
-                background-color: #0587C7; 
-                color: white; border-radius: 5px; padding: 10px 20px;}
-                QPushButton:hover {background-color: #046B9E;}""")
-            upload_btn.clicked.connect(lambda: self.upload_file(file_name_label, side))
+        # Create upload section at the top
+        upload_layout = QVBoxLayout()
+        self.file_name_label = QLabel('', self)
+        self.file_name_label.setStyleSheet('color: #0587C7;')
+        upload_btn = QPushButton('Upload File', self)
+        upload_btn.setFixedSize(200, 35)
+        upload_btn.setCursor(Qt.PointingHandCursor)
+        upload_btn.setStyleSheet("""QPushButton {
+            background-color: #0587C7; 
+            color: white; border-radius: 5px; padding: 10px 20px;}
+            QPushButton:hover {background-color: #046B9E;}""")
+        upload_btn.clicked.connect(self.upload_file)
 
+        upload_layout.addWidget(self.file_name_label, alignment=Qt.AlignCenter)
+        upload_layout.addWidget(upload_btn, alignment=Qt.AlignCenter)
+
+        def create_display_section(side):
+            layout = QVBoxLayout()
+            
             plot_container = QFrame(self)
-            plot_container.setFixedSize(500, 300)
+            plot_container.setFixedSize(650, 430)
             plot_container.setStyleSheet("border: 1px dashed #0587C7; background-color: #F0F0F0;")
             plot_container.setLayout(QVBoxLayout())
             plot_placeholder_label = QLabel(f"Input File {side}", plot_container)
             plot_placeholder_label.setAlignment(Qt.AlignCenter)
             plot_container.layout().addWidget(plot_placeholder_label)
 
-            # Create separate radio buttons for showing/hiding in-air data
+            # Radio buttons for showing/hiding in-air data
             radio_yes = QRadioButton("Show In-Air Data", self)
             radio_no = QRadioButton("Hide In-Air Data", self)
             radio_no.setChecked(True)
@@ -77,7 +82,6 @@ class EmotionDetectionApp(QWidget):
             radio_group.addButton(radio_yes)
             radio_group.addButton(radio_no)
 
-            # Connect the radio buttons to update the in-air data visibility
             radio_group.buttonClicked.connect(lambda: self.update_in_air_choice(side, radio_yes.isChecked()))
 
             radio_layout = QHBoxLayout()
@@ -90,32 +94,30 @@ class EmotionDetectionApp(QWidget):
             model_dropdown.addItem('Select a model')
             model_dropdown.currentIndexChanged.connect(lambda index: self.model_selected(index, side))
 
-            classify_btn = QPushButton('Classify', self)
-            classify_btn.setStyleSheet(upload_btn.styleSheet())
-            classify_btn.setFixedSize(200, 35)
-            classify_btn.clicked.connect(lambda: self.classify(side))
-            classify_btn.setCursor(Qt.PointingHandCursor)
-
             label_display = QLabel("Label: ")
-            label_display.setFont(QFont('Arial', 12))
+            label_display.setFont(QFont('Arial', 14))
             label_display.setStyleSheet("color: #0587C7;")
             accuracy_display = QLabel("Accuracy: ")
-            accuracy_display.setFont(QFont('Arial', 12))
+            accuracy_display.setFont(QFont('Arial', 14))
             accuracy_display.setStyleSheet("color: #0587C7;")
 
-            layout.addWidget(file_name_label, alignment=Qt.AlignCenter)
-            layout.addWidget(upload_btn, alignment=Qt.AlignCenter)
             layout.addWidget(plot_container, alignment=Qt.AlignCenter)
             layout.addLayout(radio_layout)
             layout.addWidget(model_dropdown, alignment=Qt.AlignCenter)
             layout.addWidget(label_display, alignment=Qt.AlignCenter)
             layout.addWidget(accuracy_display, alignment=Qt.AlignCenter)
-            layout.addWidget(classify_btn, alignment=Qt.AlignCenter)
 
-            return layout, file_name_label, plot_container, plot_placeholder_label, label_display, accuracy_display, model_dropdown
+            return layout, plot_container, plot_placeholder_label, label_display, accuracy_display, model_dropdown
 
-        left_section, self.file_name_label1, self.plot_container1, self.plot_placeholder_label1, self.label_display1, self.accuracy_display1, self.model_dropdown1 = create_upload_section('Left')
-        right_section, self.file_name_label2, self.plot_container2, self.plot_placeholder_label2, self.label_display2, self.accuracy_display2, self.model_dropdown2 = create_upload_section('Right')
+        left_section, self.plot_container1, self.plot_placeholder_label1, self.label_display1, self.accuracy_display1, self.model_dropdown1 = create_display_section('Left')
+        right_section, self.plot_container2, self.plot_placeholder_label2, self.label_display2, self.accuracy_display2, self.model_dropdown2 = create_display_section('Right')
+
+        # Single classify button at the bottom
+        classify_btn = QPushButton('Classify', self)
+        classify_btn.setStyleSheet(upload_btn.styleSheet())
+        classify_btn.setFixedSize(200, 35)
+        classify_btn.clicked.connect(self.classify_both)
+        classify_btn.setCursor(Qt.PointingHandCursor)
 
         main_layout = QHBoxLayout()
         main_layout.addLayout(left_section)
@@ -125,21 +127,20 @@ class EmotionDetectionApp(QWidget):
 
         outer_layout = QVBoxLayout()
         outer_layout.addWidget(title)
+        outer_layout.addLayout(upload_layout)
         outer_layout.addLayout(main_layout)
+        outer_layout.addWidget(classify_btn, alignment=Qt.AlignCenter)
         self.setLayout(outer_layout)
 
-    def upload_file(self, file_name_label, side):
+    def upload_file(self):
         file_name, _ = QFileDialog.getOpenFileName(self, "Upload File", "", "Text Files (*.txt *.csv *.svc)")
         if file_name:
-            file_name_label.setText(f"Uploaded: {os.path.basename(file_name)}")
-            if side == 'Left':
-                self.last_uploaded_file1 = file_name
-                self.process_and_plot_file(file_name, side)
-            else:
-                self.last_uploaded_file2 = file_name
-                self.process_and_plot_file(file_name, side)
+            self.file_name_label.setText(f"Uploaded: {os.path.basename(file_name)}")
+            self.last_uploaded_file = file_name
+            self.process_and_plot_file(file_name, 'Left')
+            self.process_and_plot_file(file_name, 'Right')
         else:
-            file_name_label.setText("")
+            self.file_name_label.setText("")
 
     def process_and_plot_file(self, file_path, side):
         df = pd.read_csv(file_path, skiprows=1, header=None, sep='\s+')
@@ -162,7 +163,6 @@ class EmotionDetectionApp(QWidget):
         ax.set_aspect('equal')
         ax.axis('off')
 
-        # Clear previous canvas if exists
         if side == 'Left':
             if hasattr(self, 'canvas1') and self.canvas1:
                 self.plot_container1.layout().removeWidget(self.canvas1)
@@ -181,70 +181,53 @@ class EmotionDetectionApp(QWidget):
     def update_in_air_choice(self, side, show_in_air):
         if side == 'Left':
             self.show_in_air_data1 = show_in_air
-            if self.last_uploaded_file1:
-                self.process_and_plot_file(self.last_uploaded_file1, side)
+            if self.last_uploaded_file:
+                self.process_and_plot_file(self.last_uploaded_file, side)
         else:
             self.show_in_air_data2 = show_in_air
-            if self.last_uploaded_file2:
-                self.process_and_plot_file(self.last_uploaded_file2, side)
+            if self.last_uploaded_file:
+                self.process_and_plot_file(self.last_uploaded_file, side)
 
-    def classify(self, side):
-        if side == 'Left':
-            if not self.last_uploaded_file1:  # Use the file from the left section
-                print("No file uploaded for the left section.")
-                self.label_display1.setText("Please upload a file.")
-                return
-            
-            if not self.selected_model1:
-                print("No model selected for the left section.")
-                self.label_display1.setText("Please select a model.")
-                return     
+    def classify_both(self):
+        if not self.last_uploaded_file:
+            print("No file uploaded.")
+            self.label_display1.setText("Please upload a file.")
+            self.label_display2.setText("Please upload a file.")
+            return
+        
+        # Classify with first model
+        if self.selected_model1:
             try:
-                emotion, confidence = classify_emotion(self.selected_model1, self.last_uploaded_file1, self.scaler_path1)
-                print('File from Left Section: ' + self.last_uploaded_file1)
-                print(f"\nFile: {os.path.basename(self.last_uploaded_file1)}")
+                emotion, confidence = classify_emotion(self.selected_model1, self.last_uploaded_file, self.scaler_path1)
+                print(f"\nFile (Model 1): {os.path.basename(self.last_uploaded_file)}")
                 print(f"Predicted Emotion: {emotion}")
                 print(f"Confidence: \n{confidence[0][0]}:{confidence[0][1]}")
                 self.label_display1.setText("Label: " + emotion)
-                # Only One Confidence
-                # self.accuracy_display1.setText(f"Confidence: {confidence[0][1]:.2f}%")
-                 # Display all confidence scores
                 confidence_display = "\n".join([f"{emotion}: {conf:.2f}%" for emotion, conf in confidence])
-                self.accuracy_display1.setText(f"All Confidences:\n{confidence_display}")
-
+                self.accuracy_display1.setText(f"Confidence Levels:\n{confidence_display}")
             except Exception as e:
-                print(f"Classification error in Left Section: {e}")
-                print(f"\nFile: {os.path.basename(self.last_uploaded_file1)}")
+                print(f"Classification error in Model 1: {e}")
                 self.label_display1.setText("Classification failed.")
+        else:
+            self.label_display1.setText("Please select a model.")
 
-        elif side == 'Right':
-            if not self.last_uploaded_file2:  # Use the file from the right section
-                print("No file uploaded for the right section.")
-                self.label_display2.setText("Please upload a file.")
-                return
-            
-            if not self.selected_model2:
-                print("No model selected for the right section.")
-                self.label_display2.setText("Please select a model.")
-                return     
+        # Classify with second model
+        if self.selected_model2:
             try:
-                emotion, confidence = classify_emotion(self.selected_model2, self.last_uploaded_file2, self.scaler_path2)
-                print('File from Right Section: ' + self.last_uploaded_file2)
-                print(f"\nFile: {os.path.basename(self.last_uploaded_file2)}")
+                emotion, confidence = classify_emotion(self.selected_model2, self.last_uploaded_file, self.scaler_path2)
+                print(f"\nFile (Model 2): {os.path.basename(self.last_uploaded_file)}")
                 print(f"Predicted Emotion: {emotion}")
                 print(f"Confidence: {confidence[0][1]}")
                 self.label_display2.setText("Label: " + emotion)
-                # Only One Confidence
-                # self.accuracy_display2.setText(f"Confidence: {confidence[0][1]:.2f}%")
                 confidence_display = "\n".join([f"{emotion}: {conf:.2f}%" for emotion, conf in confidence])
                 self.accuracy_display2.setText(f"All Confidences:\n{confidence_display}")
             except Exception as e:
-                print(f"Classification error in Right Section: {e}")
-                print(f"\nFile: {os.path.basename(self.last_uploaded_file2)}")
+                print(f"Classification error in Model 2: {e}")
                 self.label_display2.setText("Classification failed.")
+        else:
+            self.label_display2.setText("Please select a model.")
 
     def center_window(self):
-        # Center window on screen
         screen = QDesktopWidget().availableGeometry().center()
         window_rect = self.frameGeometry()
         window_rect.moveCenter(screen)
@@ -279,7 +262,7 @@ class EmotionDetectionApp(QWidget):
                 if f.endswith(('.h5', '.model.keras', '.model', '.keras', '.keras.model'))
             ]
             self.model_dropdown1.addItems(model_files)
-            self.model_dropdown2.addItems(model_files)  # Load the same model files into both dropdowns
+            self.model_dropdown2.addItems(model_files)
         else:
             print(f"Directory {model_dir} does not exist.")
 
